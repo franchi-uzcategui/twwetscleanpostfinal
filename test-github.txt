@@ -1,0 +1,86 @@
+tweetsCleaned <- read.csv("/users/laura/desktop/tweets_clean_post_final.csv", encoding = "UTF-8")
+
+install.packages("Rstem", repos = "http://www.omegahat.net/R", type="source")
+library(Rstem)
+require(devtools)
+install_url("http://cran.r-project.org/src/contrib/Archive/sentiment/sentiment_0.2.tar.gz")
+require(sentiment)
+ls("package:sentiment")
+library(sentiment)
+
+emotionClassification = classify_emotion(tweetsCleaned, algorithm="bayes", prior=1.0)
+
+gwemotion = emotionClassification[,7]
+gwemotion[is.na(gwemotion)] = "unknown"
+head(gwemotion,20)
+
+polarityClassification = classify_polarity(tweetsCleaned, algorithm="bayes")
+
+gwpolarity = polarityClassification[,4]
+gwsentimentDF = data.frame(text=tweetsCleaned, emotion=gwemotion, polarity=gwpolarity, stringsAsFactors=FALSE)
+gwsentimentDF = within(gwsentimentDF, emotion <- factor(emotion, levels=names(sort(table(emotion), decreasing=TRUE))))
+
+install.packages("ggplot2")
+
+plotSentiments1<- function (sentiment_dataframe,title) { 
+  library(ggplot2)
+  ggplot(sentiment_dataframe, aes(x=emotion)) + geom_bar(aes(y=..count.., fill=emotion)) +
+    scale_fill_brewer(palette="Dark2") +
+    ggtitle(title) + 
+    theme(legend.position='right') + ylab('Number of Tweets') + xlab('Emotion Categories')}
+plotSentiments1(gwsentimentDF, 'Sentiment Analysis of Tweets on Global Warming before June 1st 2017')
+
+plotSentiments2 <- function (sentiment_dataframe,title) { 
+  library(ggplot2)
+  ggplot(sentiment_dataframe, aes(x=polarity)) +
+    geom_bar(aes(y=..count.., fill=polarity)) +
+    scale_fill_brewer(palette="RdGy") +
+    ggtitle(title) + 
+    theme(legend.position='right') + ylab('Number of Tweets') + xlab('Polarity Categories')
+}
+plotSentiments2(gwsentimentDF, 'Polarity Analysis of Tweets on Global Warming before June 1st 2017')
+
+install.packages(c("wordcloud"))
+library(wordcloud)
+
+removeCustomeWords <- function (TweetsCleaned) { 
+  for(i in 1:length(TweetsCleaned)){ 
+    TweetsCleaned[i] <- tryCatch({ 
+      TweetsCleaned[i] = removeWords(TweetsCleaned[i], c(stopwords("english"), "care", "twitter", "pic", "can")) 
+      TweetsCleaned[i] 
+    }, error=function(cond) { 
+      TweetsCleaned[i] 
+    }, warning=function(cond) { 
+      TweetsCleaned[i] 
+    })} 
+  return(TweetsCleaned)}
+
+getWordCloud <- function (sentiment_dataframe, TweetsCleaned, Emotion) { 
+  emos = levels(factor(sentiment_dataframe$emotion)) 
+  n_emos = length(emos) 
+  emo.docs = rep("", n_emos) 
+  for (i in 1:n_emos){ 
+    emo.docs[i] = paste(TweetsCleaned$text[Emotion == emos[i]], collapse=" ")   } 
+  TweetsCleaned = removeCustomeWords(TweetsCleaned)
+  corpus = Corpus(VectorSource(emo.docs)) 
+  tdm = TermDocumentMatrix(corpus) 
+  tdm = as.matrix(tdm) 
+  colnames(tdm) = emos 
+  require(wordcloud) 
+  suppressWarnings(comparison.cloud(tdm, colors = brewer.pal(n_emos, "Dark2"), scale = c(5,.5), random.order = FALSE, rot.per=0.25, title.size = 1.5))}
+getWordCloud(gwsentimentDF, tweetsCleaned, gwemotion)
+
+getWordCloud2 <- function (sentiment_dataframe, TweetsCleaned, Emotion) { 
+  emos = levels(factor(sentiment_dataframe$polarity)) 
+  n_emos = length(emos) 
+  emo.docs = rep("", n_emos) 
+  TweetsCleaned = removeCustomeWords(TweetsCleaned) 
+  for (i in 1:n_emos){ 
+    emo.docs[i] = paste(TweetsCleaned$text[Emotion == emos[i]], collapse=" ")   } 
+  corpus = Corpus(VectorSource(emo.docs)) 
+  tdm = TermDocumentMatrix(corpus) 
+  tdm = as.matrix(tdm) 
+  colnames(tdm) = emos 
+  require(wordcloud) 
+  suppressWarnings(comparison.cloud(tdm, colors = brewer.pal(n_emos, "Dark2"), scale = c(5,.5), random.order = FALSE, rot.per=0.25, title.size = 1.5))}
+getWordCloud2(sentimentDF, tweetsCleaned, gwpolarity)
