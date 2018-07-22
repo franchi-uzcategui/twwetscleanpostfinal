@@ -1,4 +1,4 @@
-tweetsCleaned <- read.csv("/users/laura/desktop/tweets_clean_post_final.csv", encoding = "UTF-8")
+tweetsCleaned <- read.csv("/users/Franchi/Documents/data/tweets_clean_post_final.csv", encoding = "UTF-8")
 
 install.packages("Rstem", repos = "http://www.omegahat.net/R", type="source")
 library(Rstem)
